@@ -890,7 +890,7 @@ client.on(`messageCreate`, async (msg) => {
             );
           } else {
             await msgReply(
-              `<a:loading:123456789012345678> **${serverData.mcConfig?.ip}** is turning On...`,
+              `<a:loading:1548474616836657193> **${serverData.mcConfig?.ip}** is turning On...`,
             );
 
             const wasQueued = isProcessing;
@@ -898,7 +898,7 @@ client.on(`messageCreate`, async (msg) => {
               run: async () => {
                 if (wasQueued) {
                   await msgReply(
-                    `<a:loading:123456789012345678> Starting **${serverData.mcConfig?.ip}** server...`,
+                    `<a:loading:1548474616836657193> Starting **${serverData.mcConfig?.ip}** server...`,
                   );
                 }
                 try {
@@ -973,7 +973,7 @@ client.on(`messageCreate`, async (msg) => {
               );
             } else {
               await msgReply(
-                `<a:loading:123456789012345678> **${serverData.mcConfig?.ip}** is turning Off...`,
+                `<a:loading:1548474616836657193> **${serverData.mcConfig?.ip}** is turning Off...`,
               );
             }
             const wasQueued = isProcessing;
@@ -981,7 +981,7 @@ client.on(`messageCreate`, async (msg) => {
               run: async () => {
                 if (wasQueued) {
                   await msgReply(
-                    `<a:loading:123456789012345678> Closing **${serverData.mcConfig?.ip}** server...`,
+                    `<a:loading:1548474616836657193> Closing **${serverData.mcConfig?.ip}** server...`,
                   );
                 }
                 try {
@@ -1056,7 +1056,7 @@ client.on(`messageCreate`, async (msg) => {
               );
             } else {
               await msgReply(
-                `<a:loading:123456789012345678> **${serverData.mcConfig?.ip}** is Restarting...`,
+                `<a:loading:1548474616836657193> **${serverData.mcConfig?.ip}** is Restarting...`,
               );
             }
             const wasQueued = isProcessing;
@@ -1064,7 +1064,7 @@ client.on(`messageCreate`, async (msg) => {
               run: async () => {
                 if (wasQueued) {
                   await msgReply(
-                    `<a:loading:123456789012345678> Restarting **${serverData.mcConfig?.ip}** server...`,
+                    `<a:loading:1548474616836657193> Restarting **${serverData.mcConfig?.ip}** server...`,
                   );
                 }
                 try {
@@ -1134,7 +1134,7 @@ client.on(`messageCreate`, async (msg) => {
               );
             } else {
               await msgReply(
-                `<a:loading:123456789012345678> Searching the status of **${serverData.mcConfig?.ip}**...`,
+                `<a:loading:1548474616836657193> Searching the status of **${serverData.mcConfig?.ip}**...`,
               );
             }
 
@@ -1143,7 +1143,7 @@ client.on(`messageCreate`, async (msg) => {
               run: async () => {
                 if (wasQueued) {
                   await msgReply(
-                    `<a:loading:123456789012345678> Verifying **${serverData.mcConfig?.ip}** server...`,
+                    `<a:loading:1548474616836657193> Verifying **${serverData.mcConfig?.ip}** server...`,
                   );
                 }
                 try {
