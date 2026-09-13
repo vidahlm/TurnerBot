@@ -125,10 +125,9 @@ async function getBrowser() {
         "--disable-accelerated-2d-canvas",
         "--mute-audio",
         "--no-first-run",
-        //  "--disable-gpu", solo activar en linux
-        //  "--no-zygote", // eliminar si es muy lento en linux
+        "--disable-gpu",//  solo activar en linux
+        "--no-zygote", // eliminar si es muy lento en linux
         "--disable-background-networking",
-        // "--disable-extensions", disabled for addslice
         "--disable-blink-features=AutomationControlled",
         "--disable-component-update",
         "--disable-sync",
