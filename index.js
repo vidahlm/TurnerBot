@@ -1,59 +1,53 @@
-//Made by Vidahlm
+// Developed by Vidahlm
 const config = require("./config.json");
-const tokenUtils = require("./tokenUtils.js");
 
-let msgERR = `msg.reply() ERR:`;
+const errorMessagePrefix = "Message reply error:";
 
-require(`dotenv`).config();
+require("dotenv").config();
 
-const puppeteer = require(`puppeteer-extra`);
+const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
-const path = require("path");
-const extensionPath = path.join(__dirname, "addslice_extension");
+const path = require("node:path");
 
-const { performance } = require(`node:perf_hooks`);
-const elapsed = (start) => `${(performance.now() - start).toFixed(0)}ms`;
-
-const axios = require(`axios`);
+const { performance } = require("node:perf_hooks");
+const calculateElapsedTime = (startTime) =>
+  `${(performance.now() - startTime).toFixed(0)}ms`;
 
 const dns = require("node:dns");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
-const mongoose = require(`mongoose`);
+const mongoose = require("mongoose");
 
-const { Client, GatewayIntentBits, time, MessageFlags, EmbedBuilder } = require(
-  `discord.js`,
-);
-
-const { status } = require("minecraft-server-util");
-
-const tokenSchema = new mongoose.Schema({
-  ownIndex: { type: Number, default: 0 },
-  srvIndex: { type: Number, default: 0 },
-});
-
-const token = mongoose.model("token", tokenSchema);
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActivityType,
+} = require("discord.js");
 
 const aternosSchema = new mongoose.Schema({
-  id: { type: String, unique: true, required: true }, // es igual a serverData.mcConfig.id
-  pswrd: { type: String, required: true }, // Temporalmente texto plano
-  linkedGuilds: [{ type: String }], // Guild es el servidor (Su ID)
-  ownerId: { type: String, required: true }, // Id de quien registro por primera vez la Id de Aternos
+  id: { type: String, unique: true, required: true },
+  pswrd: { type: String, required: true },
+  linkedGuilds: [{ type: String }],
+  ownerId: { type: String, required: true },
   plan: { type: String },
 });
 
-const aternos = mongoose.model("aternos", aternosSchema);
+const AternosModel = mongoose.model("aternos", aternosSchema);
 
-const serverPlane = new mongoose.Schema({
+const serverSchema = new mongoose.Schema({
   guildId: { type: String },
   mcConfig: {
-    ip: String,
-    id: String,
-    status: String,
-    players: String,
-    version: String,
-    software: String,
+    type: {
+      ip: String,
+      id: String,
+      status: String,
+      players: String,
+      version: String,
+      software: String,
+    },
+    default: {},
   },
   cooldowns: { type: Map, of: Number, default: {} },
   lastStatusLog: { type: Number, default: 0 },
@@ -61,16 +55,16 @@ const serverPlane = new mongoose.Schema({
   plan: { type: String },
 });
 
-const server = mongoose.model("server", serverPlane);
+const ServerModel = mongoose.model("server", serverSchema);
 
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => {
-    console.log("¡Connected with MongoDB Atlas!");
+    console.log("Connected to MongoDB Atlas successfully.");
     client.login(process.env.dsToken);
   })
-  .catch((err) => {
-    console.error("ERR: MongoDB Connection:", err);
+  .catch((error) => {
+    console.error("MongoDB connection error:", error);
   });
 
 const client = new Client({
@@ -80,53 +74,47 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
   ],
 });
-//                   /\
-// Config && plugins ||
 
 const commandDelay = 1000;
-const segundoValue = 1000;
-const minutoValue = segundoValue * 60;
-const horaValue = minutoValue * 60;
-const diaValue = horaValue * 24;
-const timeParameter = [
-  { type: "second", value: segundoValue },
-  { type: "seconds", value: segundoValue },
-  { type: "minute", value: minutoValue },
-  { type: "minutes", value: minutoValue },
-  { type: "hour", value: horaValue },
-  { type: "hours", value: horaValue },
-  { type: "day", value: diaValue },
-  { type: "days", value: diaValue },
+const secondValue = 1000;
+const minuteValue = secondValue * 60;
+const hourValue = minuteValue * 60;
+const dayValue = hourValue * 24;
+
+const timeParameters = [
+  { type: "second", value: secondValue },
+  { type: "seconds", value: secondValue },
+  { type: "minute", value: minuteValue },
+  { type: "minutes", value: minuteValue },
+  { type: "hour", value: hourValue },
+  { type: "hours", value: hourValue },
+  { type: "day", value: dayValue },
+  { type: "days", value: dayValue },
 ];
 
-function veriSleep(ms) {
+function delayExecution(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-//          /\
-// time Data && Function ||
-
-let browser = null;
+let browserInstance = null;
 let isReconnecting = false;
 
 async function getBrowser() {
-  if (!browser || !browser.connected) {
-    console.log("[Puppeteer] Starting browser...");
-    browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_THORIUM,
+  if (!browserInstance || !browserInstance.connected) {
+    console.log("Initializing Puppeteer browser...");
+    browserInstance = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       headless: false,
       userDataDir: path.join(__dirname, "browser_profile"),
       args: [
-        `--disable-extensions-except=${extensionPath}`,
-        `--load-extension=${extensionPath}`,
+        "--proxy-server=socks5://127.0.0.1:9050",
+        "--disable-extensions",
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-accelerated-2d-canvas",
         "--mute-audio",
         "--no-first-run",
-        "--disable-gpu", //  solo activar en linux
-        "--no-zygote", // eliminar si es muy lento en linux
         "--disable-background-networking",
         "--disable-blink-features=AutomationControlled",
         "--disable-component-update",
@@ -134,16 +122,16 @@ async function getBrowser() {
       ],
     });
 
-    browser.on("disconnected", () => {
-      console.warn("[Puppeteer] Browser closed or crashed.");
-      browser = null;
+    browserInstance.on("disconnected", () => {
+      console.warn("Browser instance disconnected or crashed.");
+      browserInstance = null;
     });
   }
-  return browser;
+  return browserInstance;
 }
 
-async function checkBrowser() {
-  if (!browser || !browser.connected) {
+async function checkBrowserStatus() {
+  if (!browserInstance || !browserInstance.connected) {
     if (!isReconnecting) {
       isReconnecting = true;
       try {
@@ -153,44 +141,52 @@ async function checkBrowser() {
       }
     }
   }
-  return;
 }
 
 client.once("clientReady", async () => {
   console.log(`Bot started as ${client.user.tag}`);
+
+  client.user.setPresence({
+    activities: [
+      {
+        name: "tb.help",
+        type: ActivityType.Playing,
+      },
+    ],
+    status: "online",
+  });
+
   await getBrowser();
-  setInterval(checkBrowser, 5000);
+  setInterval(checkBrowserStatus, 5000);
 });
 
-async function ctrlAternos(serverid, action, serverData, maintenant) {
-  const t = performance.now();
+async function controlAternosServer(serverId, actionType, serverData) {
+  const startTime = performance.now();
 
-  let aternosResponse = "empty";
-
-  if (!browser) {
-    console.error("Browser hasn't started");
+  if (!browserInstance) {
+    console.error("Browser instance not active.");
     return false;
   }
-  const currentBrowser = await getBrowser();
-  const tPage = performance.now();
-  const page = await currentBrowser.newPage();
-  await page.evaluateOnNewDocument(() => {
-    const style = document.createElement("style");
-    style.innerHTML = `
-    *, *::before, *::after {
-      transition: none !important;
-      animation: none !important;
-      transition-duration: 0ms !important;
-      animation-duration: 0ms !important;
-      scroll-behavior: auto !important;
-    }
-  `;
-    document.documentElement.appendChild(style);
-  });
-  console.log(`[${action}] newPage: ${elapsed(tPage)}`);
-  const currentPages = await browser.pages();
-  const blankPages = currentPages.filter((p) => p.url() === "about:blank");
 
+  const currentBrowser = await getBrowser();
+  const page = await currentBrowser.newPage();
+
+  await page.evaluateOnNewDocument(() => {
+    const styleElement = document.createElement("style");
+    styleElement.innerHTML = `
+      *, *::before, *::after {
+        transition: none !important;
+        animation: none !important;
+        transition-duration: 0ms !important;
+        animation-duration: 0ms !important;
+        scroll-behavior: auto !important;
+      }
+    `;
+    document.documentElement.appendChild(styleElement);
+  });
+
+  const currentPages = await browserInstance.pages();
+  const blankPages = currentPages.filter((p) => p.url() === "about:blank");
   if (blankPages.length > 1) {
     for (let i = 0; i < blankPages.length; i++) {
       if (!blankPages[i].isClosed() && blankPages[i] !== page) {
@@ -199,38 +195,14 @@ async function ctrlAternos(serverid, action, serverData, maintenant) {
     }
   }
 
-  const slicePages = currentPages.filter((p) =>
-    p.url().includes(`addslice.com`),
-  );
-
-  if (slicePages.length > 0) {
-    for (let i = 0; i < slicePages.length; i++) {
-      if (!slicePages[i].isClosed() && slicePages[i] !== page) {
-        await slicePages[i].close();
-      }
-    }
-  }
-
-  const maxPages = 4;
-
-  if (currentPages.length >= maxPages) {
-    const pageToClose = currentPages[1] || currentPages[0];
-
-    if (pageToClose && !pageToClose.isClosed()) {
-      await pageToClose.close();
-      console.log("PAGES: Old page was closed by saturation");
-    }
-  }
-
   try {
     page.setDefaultNavigationTimeout(180000);
     page.setRequestInterception(true);
 
-    page.on("request", (req) => {
-      if (req.isInterceptResolutionHandled()) return;
+    page.on("request", (request) => {
+      if (request.isInterceptResolutionHandled()) return;
       try {
-        const resourceType = req.resourceType();
-
+        const resourceType = request.resourceType();
         const blockedTypes = [
           "image",
           "font",
@@ -243,1326 +215,982 @@ async function ctrlAternos(serverid, action, serverData, maintenant) {
         const adKeywords =
           /(doubleclick|google-analytics|googletagmanager|analytics|adsystem|adsense|tracker|pixel)/i;
 
-        if (blockedTypes.includes(resourceType) || adKeywords.test(req.url())) {
-          req.abort();
+        if (
+          blockedTypes.includes(resourceType) ||
+          adKeywords.test(request.url())
+        ) {
+          request.abort();
         } else {
-          req.continue();
+          request.continue();
         }
-      } catch (e) {
-        console.error(`resourceType ERR:`, e);
-        req.continue().catch(() => {});
+      } catch (error) {
+        request.continue().catch(() => {});
       }
     });
 
     let pageStatus;
-    let pageSystemFails = 0;
-    let pageSystemLimit = false;
+    let systemFailures = 0;
+    let systemLimitReached = false;
     let loopCount = 0;
-    let loopMax = 20;
+    const maxLoops = 20;
 
-    const tGoto = performance.now();
     await page.goto("https://aternos.org/servers/", {
       waitUntil: "domcontentloaded",
     });
-    console.log(`[${action}] go to: ${elapsed(tGoto)}`);
-    await veriSleep(500);
+    await delayExecution(500);
 
-    //               /\
-    // 1st try{} err ||
+    let actionCompleted = false;
+    let loginCompleted = false;
+    let serverChoosingCompleted = false;
+    let statusTextResult;
 
-    try {
-      let actionDone = false;
-      let loginDone = false;
-      let choosingDone = false;
-      let statusTxtwFF;
-      while (
-        pageSystemLimit === false &&
-        loopCount < loopMax &&
-        actionDone === false
-      ) {
-        try {
-          if (
-            (page.url().includes("/login/") &&
-              page.url().includes("aternos") &&
-              !loginDone) ||
-            (page.url().includes("/go/") &&
-              page.url().includes("aternos") &&
-              !loginDone)
-          ) {
-            const tLogin = performance.now();
-            pageStatus = "loginAcc";
-            await page.waitForSelector("input.username", {
-              timeout: 5000,
-            });
-            await page.click("input.username", { clickCount: 3 });
-            await page.type("input.username", process.env.ATERNOS_USER, {
-              delay: 30,
-            });
-            await page.click("input.password", { clickCount: 3 });
-            await page.type("input.password", process.env.ATERNOS_PASSWORD, {
-              delay: 30,
-            });
-            await veriSleep(500);
-            (await page.evaluate(() => {
-              const loginbutton = document.querySelector(".login-button");
-              if (loginbutton) loginbutton.click();
-            }),
-              (pageSystemFails = 0));
-            await page
-              .waitForNavigation({ waitUntil: "domcontentloaded" })
-              .catch(() => {});
-            console.log(`[${action}] login: ${elapsed(tLogin)}`);
-            loginDone = true;
-          } else if (
-            page.url().includes("/servers/") &&
-            page.url().includes("aternos")
-          ) {
-            const tChoosing = performance.now();
-            if (!choosingDone) {
-              pageStatus = "choosingServer";
-              pageSystemFails = 0;
-              const spinItem = await page.$(
-                `.fa-solid.fa-circle-notch.fa-spin`,
-              );
-              if (!spinItem) {
-                await page.waitForSelector(
-                  `[data-id="${serverid.replace("#", "")}"]`,
-                  { visible: true, timeout: 11000 },
-                );
-                await veriSleep(500);
-                await page.evaluate((id) => {
-                  const serveridbutton = document.querySelector(
-                    `[data-id="${id.replace("#", "")}"]`,
-                  );
-                  if (serveridbutton) serveridbutton.click();
-                }, serverid);
-                pageSystemFails = 0;
-                choosingDone = true;
-              }
-            } else if (choosingDone) {
-              const panelLocation = await page
-                .waitForFunction(
-                  () =>
-                    window.location.href.includes("/server/") &&
-                    !window.location.href.includes("/servers/"),
-                  { timeout: 20000 },
-                )
-                .catch(() => {});
-              if (panelLocation)
-                console.log(
-                  `[${action}] choosingServer: ${elapsed(tChoosing)}`,
-                );
-            }
-          } else if (
-            page.url().includes("/server/") &&
-            !page.url().includes("/servers/") &&
-            page.url().includes("aternos")
-          ) {
-            pageStatus = "panelAct";
-            const tAction = performance.now();
-            let adblockWait;
-            try {
-              adblockWait = await page.evaluate(() => {
-                const adblockButton = document.querySelector(
-                  ".btn.btn-white.kSFhJOHmpiCI",
-                );
-                if (adblockButton) {
-                  adblockButton.click();
-                  return true;
-                }
-              });
-            } catch {}
-            if (adblockWait) {
-              await veriSleep(4000);
-            }
-
-            try {
-              await page.evaluate(() => {
-                const alertBody = document.querySelector(`.alert-body`);
-                const notificationButton =
-                  document.querySelector(".btn.btn-succes");
-                if (notificationButton && alertBody) {
-                  notificationButton.click();
-                }
-              });
-            } catch {}
-
-            if (action === `start`) {
-              const serverTurning = await page
-                .$eval(".statuslabel-label", (el) => el.innerText.trim())
-                .catch(() => "");
-              if (serverTurning.includes(`Online`)) {
-                actionDone = true;
-              }
-              if (serverTurning.includes(`ff`)) {
-                let artErr;
-                try {
-                  await page.waitForSelector("#start", {
-                    visible: true,
-                    timeout: 10000,
-                  });
-                } catch (e) {
-                  console.error(`waitForSelector ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-                await veriSleep(500);
-                try {
-                  await page.evaluate(() => {
-                    const startbutton = document.querySelector("#start");
-                    if (startbutton) startbutton.click();
-                  });
-                } catch (e) {
-                  console.error(`startbutton ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-
-                await page.waitForFunction(
-                  () => {
-                    const statusCEl =
-                      document.querySelector(".statuslabel-label");
-                    if (!statusCEl) return false;
-                    return true;
-                  },
-                  { timeout: 20000 },
-                );
-                statusTxtwFF = await page.$eval(".statuslabel-label", (el) =>
-                  el.innerText.trim(),
-                );
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = statusTxtwFF;
-                serverData.lastStatusLog = Date.now();
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                await veriSleep(1000);
-              } else if (serverTurning === "") {
-                loopCount = 0;
-              } else if (
-                !serverTurning.includes(`ff`) &&
-                !serverTurning.includes(`.`)
-              ) {
-                console.log(
-                  `ERR: serverTurning: "${serverTurning}" statuslabel-label doesn't have ff`,
-                );
-                try {
-                  await veriSleep(5000);
-                } catch (e) {}
-              }
-              if (
-                serverData?.mcConfig?.status?.includes(`.`) ||
-                serverTurning?.includes(`.`)
-              ) {
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = serverTurning;
-                console.log(
-                  `ctrlAternos has succesfully started ${serverData?.mcConfig?.ip}`,
-                );
-                console.log(`${statusTxtwFF}`);
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                actionDone = true;
-              }
-            } else if (action === `stop`) {
-              const serverTurning = await page
-                .$eval(".statuslabel-label", (el) => el.innerText.trim())
-                .catch(() => "");
-              if (serverTurning.includes(`Offline`)) {
-                actionDone = true;
-              }
-              if (serverTurning.includes(`nl`)) {
-                let artErr;
-                try {
-                  await page.waitForSelector("#stop", {
-                    visible: true,
-                    timeout: 10000,
-                  });
-                } catch (e) {
-                  console.error(`waitForSelector ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-                await veriSleep(500);
-                try {
-                  await page.evaluate(() => {
-                    const stopbutton = document.querySelector("#stop");
-                    if (stopbutton) stopbutton.click();
-                  });
-                } catch (e) {
-                  console.error(`stopbutton ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-
-                await page.waitForFunction(
-                  () => {
-                    const statusCEl =
-                      document.querySelector(".statuslabel-label");
-                    if (!statusCEl) return false;
-                    return true;
-                  },
-                  { timeout: 20000 },
-                );
-                statusTxtwFF = await page.$eval(".statuslabel-label", (el) =>
-                  el.innerText.trim(),
-                );
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = statusTxtwFF;
-                serverData.lastStatusLog = Date.now();
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                await veriSleep(1000);
-              } else if (serverTurning === "") {
-                loopCount = 0;
-              } else if (
-                !serverTurning.includes(`nl`) &&
-                !serverTurning.includes(`.`)
-              ) {
-                console.log(
-                  `ERR: serverTurning: "${serverTurning}" statuslabel-label doesn't have nl`,
-                );
-                try {
-                  await veriSleep(5000);
-                } catch (e) {}
-              }
-              if (
-                serverData?.mcConfig?.status?.includes(`.`) ||
-                serverTurning?.includes(`.`)
-              ) {
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = serverTurning;
-                console.log(
-                  `ctrlAternos has succesfully closed ${serverData?.mcConfig?.ip}`,
-                );
-                console.log(`${statusTxtwFF}`);
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                actionDone = true;
-              }
-            } else if (action === `restart`) {
-              const serverTurning = await page
-                .$eval(".statuslabel-label", (el) => el.innerText.trim())
-                .catch(() => "");
-              if (serverTurning.includes(`Offline`)) {
-                return "nRestart";
-              }
-              if (serverTurning.includes(`nl`)) {
-                let artErr;
-                try {
-                  await page.waitForSelector("#restart", {
-                    visible: true,
-                    timeout: 10000,
-                  });
-                } catch (e) {
-                  console.error(`waitForSelector ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-                await veriSleep(500);
-                try {
-                  await page.evaluate(() => {
-                    const restartbutton = document.querySelector("#restart");
-                    if (restartbutton) restartbutton.click();
-                  });
-                } catch (e) {
-                  console.error(`restartbutton ERR:`, e);
-                  artErr = true;
-                }
-                if (artErr) throw new Error(``);
-                await page.waitForFunction(
-                  () => {
-                    const statusCEl =
-                      document.querySelector(".statuslabel-label");
-                    if (!statusCEl) return false;
-                    return true;
-                  },
-                  { timeout: 20000 },
-                );
-                statusTxtwFF = await page.$eval(".statuslabel-label", (el) =>
-                  el.innerText.trim(),
-                );
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = statusTxtwFF;
-                serverData.lastStatusLog = Date.now();
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                await veriSleep(1000);
-              } else if (serverTurning === "") {
-                loopCount = 0;
-              } else if (
-                !serverTurning.includes(`nl`) &&
-                !serverTurning.includes(`.`)
-              ) {
-                console.log(
-                  `ERR: serverTurning: "${serverTurning}" statuslabel-label doesn't have nl`,
-                );
-                try {
-                  await veriSleep(5000);
-                } catch (e) {}
-              }
-              if (
-                serverData?.mcConfig?.status?.includes(`.`) ||
-                serverTurning?.includes(`.`)
-              ) {
-                if (serverData?.mcConfig)
-                  serverData.mcConfig.status = serverTurning;
-                console.log(
-                  `ctrlAternos has succesfully restarted ${serverData?.mcConfig?.ip}`,
-                );
-                console.log(`${statusTxtwFF}`);
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                actionDone = true;
-              }
-            } else if (action === `status`) {
-              let software = "Unknown";
-              let version = "Unknown";
-              let players = "Unknown";
-              try {
-                await page.waitForFunction(
-                  () => {
-                    const el = document.querySelector(".statuslabel-label");
-                    return el && el.innerText.trim().length > 0;
-                  },
-                  { timeout: 20000 },
-                );
-
-                const data = await page.evaluate(() => {
-                  const statusEl = document.querySelector(".statuslabel-label");
-                  const softEl = document.querySelector("#software");
-                  const verEl = document.querySelector("#version");
-                  const playEl = document.querySelector(
-                    ".live-status-box-value.js-players",
-                  );
-
-                  if (!statusEl) return null;
-
-                  return {
-                    statusTxt: statusEl ? statusEl.innerText.trim() : "N/A",
-                    softwareText: softEl ? softEl.innerText.trim() : "N/A",
-                    versionText: verEl ? verEl.innerText.trim() : "N/A",
-                    playersText: playEl ? playEl.innerText.trim() : "N/A",
-                  };
-                });
-
-                if (serverData?.mcConfig) {
-                  serverData.mcConfig.status = data.statusTxt;
-                  serverData.mcConfig.software = data.softwareText;
-                  serverData.mcConfig.version = data.versionText;
-                  serverData.mcConfig.players = data.playersText;
-                }
-                serverData.lastStatusCommand = Date.now();
-
-                console.log(
-                  `ctrlAternos has succesfully checked ${serverData?.mcConfig?.ip} status`,
-                );
-                console.log(`[${action}] Action: ${elapsed(tAction)}`);
-                actionDone = true;
-              } catch (e) {
-                pageSystemFails++;
-                console.error(`ctrlAternos statusAct ERR:`, e);
-              }
-            } else {
-              console.log(`[${action}] LABEL_ERR`);
-              pageSystemFails++;
-            }
-
-            //               /\
-            // 3rd try{} err ||
-          }
-        } catch (e) {
-          console.log(`ERR: ctrlAternos third try{} failed`);
-          console.log(`ERR: ${pageStatus} system failed`);
-          console.error(e);
-          pageSystemFails++;
-        }
-        if (pageSystemFails === 5) {
-          pageSystemLimit = true;
-          pageSystemFails = 0;
-          return false;
-        }
-        loopCount++;
-        await veriSleep(800);
-      }
-      return actionDone;
-
-      //               /\
-      // 2nd try{} err ||
-    } catch (e) {
-      console.log(`ERR: ctrlAternos second try{} failed \n`, e);
-    } finally {
-      if (page && !page.isClosed()) {
-        try {
-          await page.goto("about:blank", {
-            waitUntil: "domcontentloaded",
+    while (!systemLimitReached && loopCount < maxLoops && !actionCompleted) {
+      try {
+        if (
+          (page.url().includes("/login/") &&
+            page.url().includes("aternos") &&
+            !loginCompleted) ||
+          (page.url().includes("/go/") &&
+            page.url().includes("aternos") &&
+            !loginCompleted)
+        ) {
+          pageStatus = "loginAccount";
+          await page.waitForSelector("input.username", { timeout: 5000 });
+          await page.click("input.username", { clickCount: 3 });
+          await page.type("input.username", process.env.ATERNOS_USER, {
+            delay: 30,
           });
-          console.log(`[${action}] TOTAL: ${elapsed(t)}`);
-          console.log(`\nctrlAternos Ended \n--------------------\n`);
-        } catch (e) {
-          console.error(`about:blank closing ERR:`, e);
+          await page.click("input.password", { clickCount: 3 });
+          await page.type("input.password", process.env.ATERNOS_PASSWORD, {
+            delay: 30,
+          });
+          await delayExecution(500);
+
+          await page.evaluate(() => {
+            const loginButton = document.querySelector(".login-button");
+            if (loginButton) loginButton.click();
+          });
+
+          systemFailures = 0;
+          await page
+            .waitForNavigation({ waitUntil: "domcontentloaded" })
+            .catch(() => {});
+          loginCompleted = true;
+        } else if (
+          page.url().includes("/servers/") &&
+          page.url().includes("aternos")
+        ) {
+          if (!serverChoosingCompleted) {
+            pageStatus = "choosingServer";
+            systemFailures = 0;
+            const spinner = await page.$(".fa-solid.fa-circle-notch.fa-spin");
+            if (!spinner) {
+              await page.waitForSelector(
+                `[data-id="${serverId.replace("#", "")}"]`,
+                {
+                  visible: true,
+                  timeout: 11000,
+                },
+              );
+              await delayExecution(500);
+              await page.evaluate((id) => {
+                const serverButton = document.querySelector(
+                  `[data-id="${id.replace("#", "")}"]`,
+                );
+                if (serverButton) serverButton.click();
+              }, serverId);
+              systemFailures = 0;
+              serverChoosingCompleted = true;
+            }
+          }
+        } else if (
+          page.url().includes("/server/") &&
+          !page.url().includes("/servers/") &&
+          page.url().includes("aternos")
+        ) {
+          pageStatus = "panelActive";
+
+          try {
+            await page.evaluate(() => {
+              const adblockButton = document.querySelector(
+                ".btn.btn-white.kSFhJOHmpiCI",
+              );
+              if (adblockButton) adblockButton.click();
+            });
+          } catch {}
+
+          try {
+            await page.evaluate(() => {
+              const alertBody = document.querySelector(".alert-body");
+              const notificationButton =
+                document.querySelector(".btn.btn-succes");
+              if (notificationButton && alertBody) notificationButton.click();
+            });
+          } catch {}
+
+          if (actionType === "start") {
+            const serverTurning = await page
+              .$eval(".statuslabel-label", (el) => el.innerText.trim())
+              .catch(() => "");
+            if (serverTurning.includes("Online")) {
+              actionCompleted = "alreadyOnline";
+            }
+            if (serverTurning.includes("ff")) {
+              await page.waitForSelector("#start", {
+                visible: true,
+                timeout: 10000,
+              });
+              await delayExecution(500);
+              await page.evaluate(() => {
+                const startButton = document.querySelector("#start");
+                if (startButton) startButton.click();
+              });
+
+              await page.waitForFunction(
+                () => document.querySelector(".statuslabel-label"),
+                { timeout: 20000 },
+              );
+              statusTextResult = await page.$eval(".statuslabel-label", (el) =>
+                el.innerText.trim(),
+              );
+
+              serverData.mcConfig.status = statusTextResult;
+              serverData.lastStatusLog = Date.now();
+              await delayExecution(1000);
+              actionCompleted = true;
+            }
+          } else if (actionType === "stop") {
+            const serverTurning = await page
+              .$eval(".statuslabel-label", (el) => el.innerText.trim())
+              .catch(() => "");
+            if (serverTurning.includes("Offline")) {
+              actionCompleted = "alreadyOffline";
+            }
+            if (serverTurning.includes("nl")) {
+              await page.waitForSelector("#stop", {
+                visible: true,
+                timeout: 10000,
+              });
+              await delayExecution(500);
+              await page.evaluate(() => {
+                const stopButton = document.querySelector("#stop");
+                if (stopButton) stopButton.click();
+              });
+
+              await page.waitForFunction(
+                () => document.querySelector(".statuslabel-label"),
+                { timeout: 20000 },
+              );
+              statusTextResult = await page.$eval(".statuslabel-label", (el) =>
+                el.innerText.trim(),
+              );
+
+              serverData.mcConfig.status = statusTextResult;
+              serverData.lastStatusLog = Date.now();
+              await delayExecution(1000);
+              actionCompleted = true;
+            }
+          } else if (actionType === "restart") {
+            const serverTurning = await page
+              .$eval(".statuslabel-label", (el) => el.innerText.trim())
+              .catch(() => "");
+            if (serverTurning.includes("Offline")) {
+              return "offlineRestart";
+            }
+            if (serverTurning.includes("nl")) {
+              await page.waitForSelector("#restart", {
+                visible: true,
+                timeout: 10000,
+              });
+              await delayExecution(500);
+              await page.evaluate(() => {
+                const restartButton = document.querySelector("#restart");
+                if (restartButton) restartButton.click();
+              });
+
+              await page.waitForFunction(
+                () => document.querySelector(".statuslabel-label"),
+                { timeout: 20000 },
+              );
+              statusTextResult = await page.$eval(".statuslabel-label", (el) =>
+                el.innerText.trim(),
+              );
+
+              serverData.mcConfig.status = statusTextResult;
+              serverData.lastStatusLog = Date.now();
+              await delayExecution(1000);
+              actionCompleted = true;
+            }
+          } else if (actionType === "status") {
+            try {
+              await page.waitForFunction(
+                () => {
+                  const element = document.querySelector(".statuslabel-label");
+                  return element && element.innerText.trim().length > 0;
+                },
+                { timeout: 20000 },
+              );
+
+              const data = await page.evaluate(() => {
+                const statusEl = document.querySelector(".statuslabel-label");
+                const softEl = document.querySelector("#software");
+                const verEl = document.querySelector("#version");
+                const playEl = document.querySelector(
+                  ".live-status-box-value.js-players",
+                );
+
+                if (!statusEl) return null;
+
+                return {
+                  statusTxt: statusEl ? statusEl.innerText.trim() : "N/A",
+                  softwareText: softEl ? softEl.innerText.trim() : "N/A",
+                  versionText: verEl ? verEl.innerText.trim() : "N/A",
+                  playersText: playEl ? playEl.innerText.trim() : "N/A",
+                };
+              });
+
+              serverData.mcConfig.status = data.statusTxt;
+              serverData.mcConfig.software = data.softwareText;
+              serverData.mcConfig.version = data.versionText;
+              serverData.mcConfig.players = data.playersText;
+              serverData.lastStatusCommand = Date.now();
+              actionCompleted = true;
+            } catch (error) {
+              systemFailures++;
+            }
+          }
         }
+      } catch (error) {
+        systemFailures++;
       }
+
+      if (systemFailures === 5) {
+        systemLimitReached = true;
+        return false;
+      }
+      loopCount++;
+      await delayExecution(800);
     }
-    if (loopCount >= loopMax) {
-      console.log("ERR: ctrlAternos overpassed the tries loop limit");
-    }
+    return actionCompleted;
   } catch (error) {
-    console.error("ERR: ctrlAternos first try{} failed\n", error);
+    console.error("Control execution error:", error);
     return false;
+  } finally {
+    if (page && !page.isClosed()) {
+      await page
+        .goto("about:blank", { waitUntil: "domcontentloaded" })
+        .catch(() => {});
+      await page.close().catch(() => {});
+    }
   }
 }
-//                          /\
-// Browser actions function ||
 
-const queueAct = [];
-let isProcessing = false;
-async function queueProcessing() {
-  if (isProcessing || queueAct.length === 0) return;
-  isProcessing = true;
+const actionQueue = [];
+let isQueueProcessing = false;
+
+async function processQueue() {
+  if (isQueueProcessing || actionQueue.length === 0) return;
+  isQueueProcessing = true;
 
   try {
-    while (queueAct.length > 0) {
-      const task = queueAct.shift();
-
+    while (actionQueue.length > 0) {
+      const task = actionQueue.shift();
       try {
         await task.run();
-      } catch (err) {
-        console.error("task.run() ERR:", err);
-      } finally {
+      } catch (error) {
+        console.error("Task execution error:", error);
       }
     }
-  } catch (e) {
-    console.error("queueProcessing ERR: ", e);
   } finally {
-    isProcessing = false;
+    isQueueProcessing = false;
   }
 }
-//                           /\
-// Queue management function ||
 
-async function shutdown() {
-  console.log("\n[Shutdown] Turning Bot off...");
-
-  if (browser) {
-    console.log("[Shutdown] Closing Chromium stance...");
-    await browser.close();
+async function shutdownBot() {
+  if (browserInstance) {
+    await browserInstance.close();
   }
-
   await mongoose.disconnect();
-  console.log("[Shutdown] MongoDB connection closed");
-
   process.exit(0);
 }
-//                    /\
-// Shut down function ||
 
-client.on(`messageCreate`, async (msg) => {
+client.on("messageCreate", async (message) => {
+  const helpColor = 0x59ffff;
   let timeTextParameter;
   let serverData;
+
   try {
-    serverData = await server.findOneAndUpdate(
-      { guildId: msg.guildId },
-      { $setOnInsert: { guildId: msg.guildId, mcConfig: {}, cooldowns: {} } },
+    serverData = await ServerModel.findOneAndUpdate(
+      { guildId: message.guildId },
+      {
+        $setOnInsert: { guildId: message.guildId, mcConfig: {}, cooldowns: {} },
+      },
       { upsert: true, returnDocument: "after" },
     );
-  } catch (e) {
-    console.error(`DB ERR:`, e);
+  } catch (error) {
     return;
-  }
-  if (!serverData) {
-    serverData = await server.create({ guildId: msg.guildId });
-    console.log(serverData);
   }
 
   let aternosData;
   try {
     if (serverData.mcConfig?.id) {
-      aternosData = await aternos.findOne({ id: serverData.mcConfig.id });
+      aternosData = await AternosModel.findOne({ id: serverData.mcConfig.id });
     }
-  } catch (e) {
-    console.error(`DB ERR al buscar Aternos:`, e);
+  } catch (error) {}
+
+  let timeRemaining = 0;
+  let currentTime = Date.now();
+  let commandArgs = message.content.split(" ");
+  let commandKey = commandArgs[0].toLowerCase().replaceAll(".", "_");
+  let lastCommandTimestamp = serverData.cooldowns?.get(commandKey) || 0;
+  let savedMessage;
+  const isAdmin = config.admin?.includes(message.author.id);
+
+  function convertTime() {
+    if (timeRemaining < secondValue * 60) {
+      timeRemaining = Math.ceil(timeRemaining / secondValue);
+      timeRemaining === 1
+        ? (timeTextParameter = timeParameters[0].type)
+        : (timeTextParameter = timeParameters[1].type);
+    } else if (
+      timeRemaining >= secondValue * 60 &&
+      timeRemaining < minuteValue * 60
+    ) {
+      timeRemaining = Math.ceil(timeRemaining / minuteValue);
+      timeRemaining === 1
+        ? (timeTextParameter = timeParameters[2].type)
+        : (timeTextParameter = timeParameters[3].type);
+    } else if (
+      timeRemaining >= minuteValue * 60 &&
+      timeRemaining < hourValue * 24
+    ) {
+      timeRemaining = Math.ceil(timeRemaining / hourValue);
+      timeRemaining === 1
+        ? (timeTextParameter = timeParameters[4].type)
+        : (timeTextParameter = timeParameters[5].type);
+    } else if (
+      timeRemaining >= hourValue * 24 &&
+      timeRemaining < dayValue * 7
+    ) {
+      timeRemaining = Math.ceil(timeRemaining / dayValue);
+      timeRemaining === 1
+        ? (timeTextParameter = timeParameters[6].type)
+        : (timeTextParameter = timeParameters[7].type);
+    }
   }
 
-  let msecondsRes = 0;
-  let maintenant = Date.now();
-  let msgSplited = msg.content.split(" ");
-  let dbKey = msgSplited[0].toLowerCase().replaceAll(".", "_");
-  let lastCommandLogTime = serverData.cooldowns?.get(dbKey) || 0;
-
-  function timeConversor() {
-    if (msecondsRes < segundoValue * 60) {
-      msecondsRes = Math.ceil(msecondsRes / segundoValue);
-      msecondsRes === 1
-        ? (timeTextParameter = timeParameter[0].type)
-        : (timeTextParameter = timeParameter[1].type);
-    } else if (
-      msecondsRes >= segundoValue * 60 &&
-      msecondsRes < minutoValue * 60
-    ) {
-      msecondsRes = Math.ceil(msecondsRes / minutoValue);
-      msecondsRes === 1
-        ? (timeTextParameter = timeParameter[2].type)
-        : (timeTextParameter = timeParameter[3].type);
-    } else if (
-      msecondsRes >= minutoValue * 60 &&
-      msecondsRes < horaValue * 24
-    ) {
-      msecondsRes = Math.ceil(msecondsRes / horaValue);
-      msecondsRes === 1
-        ? (timeTextParameter = timeParameter[4].type)
-        : (timeTextParameter = timeParameter[5].type);
-    } else if (msecondsRes >= horaValue * 24 && msecondsRes < diaValue * 7) {
-      msecondsRes = Math.ceil(msecondsRes / diaValue);
-      msecondsRes === 1
-        ? (timeTextParameter = timeParameter[6].type)
-        : (timeTextParameter = timeParameter[7].type);
-    }
-  }
-
-  //                          /\
-  // Data && vars  && configs ||
-
-  //Text Receiving ||
-  //               \/
-
-  async function cooldownEmbed() {
+  async function sendCooldownEmbed() {
     try {
       const cooldownEmbed = new EmbedBuilder()
-        .setColor(0x605f63) // Gris cooldown
-        .setTitle(`Cooldown...`)
+        .setColor(0x605f63)
+        .setTitle("Cooldown")
         .setDescription(
-          `You will be able to use this command again in ${msecondsRes} ${timeTextParameter}`,
+          `You can use this command again in ${timeRemaining}${timeTextParameter}.`,
         )
-        .setFooter({ text: `${msg.author?.displayName}` })
+        .setFooter({ text: message.author?.displayName })
         .setTimestamp();
 
-      await msg.reply({ embeds: [cooldownEmbed] });
-    } catch (e) {
-      console.error(msgERR, e);
-    }
+      await message.reply({ embeds: [cooldownEmbed] });
+    } catch (error) {}
   }
 
-  async function msgReply(message) {
+  async function replyMessage(contentPayload) {
     try {
       const payload =
-        typeof message === "string"
-          ? { content: message, failIfNotExists: false }
-          : { failIfNotExists: false, ...message };
-
-      return await msg.reply(payload);
-    } catch (e) {
-      if (e.code === 50035 || e.code === 10008) {
-        return await msg.channel.send(message).catch(() => {});
+        typeof contentPayload === "string"
+          ? { content: contentPayload, failIfNotExists: false }
+          : { failIfNotExists: false, ...contentPayload };
+      return await message.reply(payload);
+    } catch (error) {
+      if (error.code === 50035 || error.code === 10008) {
+        return await message.channel.send(contentPayload).catch(() => {});
       }
-      console.error(msgERR, e);
     }
   }
 
-  if (msg.author?.bot === false && mongoose.connection.readyState === 1) {
-    //
+  if (message.author?.bot === false && mongoose.connection.readyState === 1) {
+    if (
+      message.content.toLowerCase().startsWith("at.guide") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      if (!browserInstance) {
+        await replyMessage("TurnerBot has not started yet, please try again.");
+        return;
+      }
+      serverData.cooldowns?.set(commandKey, currentTime);
+      await serverData.save();
 
-    {
+      const guideEmbed = new EmbedBuilder()
+        .setColor(helpColor)
+        .setTitle("Guide")
+        .addFields({
+          name: "How to connect TurnerBot with Aternos",
+          value:
+            "1. Go to aternos.org/servers and enter your server. Find the server code starting with '#' below the Aternos button. Click Connect and save the IP.\n2. Use `at.setup <IP> <ServerID> <Password>`.\n3. Keep your credentials secure.",
+        });
+
+      await replyMessage({ embeds: [guideEmbed] });
+    }
+
+    if (
+      message.content.toLowerCase().startsWith("at.start") &&
+      (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
+      currentTime - lastCommandTimestamp > commandDelay * 60
+    ) {
+      if (!browserInstance) {
+        await replyMessage("TurnerBot has not started yet, please try again.");
+        return;
+      }
+      serverData.cooldowns?.set(commandKey, currentTime);
+      let canStart = true;
       if (
-        msg.content.startsWith(`at.start`) &&
-        (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
-        maintenant - lastCommandLogTime > commandDelay * 60
+        serverData.mcConfig?.status !== "Offline" &&
+        serverData.lastStatusLog + commandDelay * 60 * 2 > Date.now()
       ) {
-        if (!browser) {
-          await msgReply("TurnerBot hasn't started yet, try again");
+        timeRemaining = Date.now() - serverData.lastStatusLog;
+        convertTime();
+        if (!isNaN(timeRemaining) && timeTextParameter !== undefined) {
+          canStart = false;
+          await replyMessage(
+            `Server status was ${serverData.mcConfig?.status} ${timeRemaining}${timeTextParameter} ago.`,
+          );
+        }
+      }
+
+      if (canStart) {
+        await serverData.save();
+        if (isQueueProcessing || actionQueue.length > 0) {
+          const queuePosition = actionQueue.length + 1;
+          savedMessage = await replyMessage(
+            `TurnerBot processing queue is full. Position: **#${queuePosition}**.`,
+          );
+        } else {
+          savedMessage = await replyMessage(
+            `**${serverData.mcConfig?.ip}** is turning on...`,
+          );
+          const wasQueued = isQueueProcessing;
+          actionQueue.push({
+            run: async () => {
+              if (wasQueued) {
+                await savedMessage.edit(
+                  `Starting **${serverData.mcConfig?.ip}** server...`,
+                );
+              }
+              try {
+                const result = await controlAternosServer(
+                  serverData.mcConfig?.id,
+                  "start",
+                  serverData,
+                );
+                await serverData.save();
+                if (result === "alreadyOnline") {
+                  await savedMessage.edit(
+                    `**${serverData.mcConfig?.ip}** is already online.`,
+                  );
+                } else if (result) {
+                  await savedMessage.edit(
+                    `**${serverData.mcConfig?.ip}** has been turned on.`,
+                  );
+                } else {
+                  await savedMessage.edit(
+                    "An error occurred starting the server. No response from host.",
+                  );
+                }
+              } catch (error) {}
+            },
+          });
+          processQueue();
           return;
         }
-        serverData.cooldowns?.set(dbKey, maintenant);
-        let cIStart = true;
-        if (
-          serverData.mcConfig?.status !== "Offline" &&
-          serverData.lastStatusLog + commandDelay * 60 * 2 > Date.now()
-        ) {
-          msecondsRes = Date.now() - serverData.lastStatusLog;
-          timeConversor();
-          if (!isNaN(msecondsRes) && timeTextParameter !== undefined) {
-            cIStart = false;
-            await msgReply(
-              `Server status was ${serverData.mcConfig?.status} ${msecondsRes} ${timeTextParameter} ago`,
-            );
-          }
-        }
+      }
+    }
 
-        if (cIStart) {
-          await serverData.save();
-          if (isProcessing === true || queueAct.length > 0) {
-            const queuePosition = queueAct.length + 1;
-            await msgReply(
-              `TurnerBot is processing another task currently. Your position in the queue is **#${queuePosition}**.`,
-            );
-          } else {
-            await msgReply(
-              `<a:loading:1548513293830848603> **${serverData.mcConfig?.ip}** is turning On...`,
-            );
-
-            const wasQueued = isProcessing;
-            queueAct.push({
-              run: async () => {
-                if (wasQueued) {
-                  await msgReply(
-                    `<a:loading:1548513293830848603> Starting **${serverData.mcConfig?.ip}** server...`,
-                  );
-                }
-                try {
-                  const aternosResult = await ctrlAternos(
-                    serverData.mcConfig?.id,
-                    "start",
-                    serverData,
-                    maintenant,
-                  );
-                  await serverData.save();
-                  if (aternosResult) {
-                    await msgReply(`**${serverData.mcConfig?.ip}** is Online`);
-                    return;
-                  } else if (!aternosResult || aternosResult === false) {
-                    await msgReply(
-                      "An error ocurred starting the server, no answer from the host website",
-                    );
-                  }
-                } catch {}
-              },
-            });
-            queueProcessing();
-            return;
-          }
-        } else if (
-          (msg.content.startsWith(`at.start`) && !serverData.mcConfig?.id) ||
-          (msg.content.startsWith(`at.start`) && !serverData.mcConfig?.ip)
-        ) {
-          await msgReply(`You didn't provided an ip or id, use at.setup first`);
-        } else if (
-          msg.content.startsWith(`at.start`) &&
-          maintenant - lastCommandLogTime < commandDelay * 60
-        ) {
-          msecondsRes = commandDelay * 60 - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
+    if (
+      message.content.toLowerCase().startsWith("at.stop") &&
+      (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
+      currentTime - lastCommandTimestamp > commandDelay * 30
+    ) {
+      if (!browserInstance) {
+        await replyMessage("TurnerBot has not started yet, please try again.");
+        return;
+      }
+      serverData.cooldowns?.set(commandKey, currentTime);
+      let canStop = true;
+      if (
+        serverData.mcConfig?.status !== "Online" &&
+        serverData.lastStatusLog + commandDelay * 30 > Date.now()
+      ) {
+        timeRemaining = Date.now() - serverData.lastStatusLog;
+        convertTime();
+        if (!isNaN(timeRemaining) && timeTextParameter !== undefined) {
+          canStop = false;
+          await replyMessage(
+            `Server status was ${serverData.mcConfig?.status} ${timeRemaining}${timeTextParameter} ago.`,
+          );
         }
       }
 
-      {
-        if (
-          msg.content.startsWith(`at.stop`) &&
-          (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
-          maintenant - lastCommandLogTime > commandDelay * 30
-        ) {
-          if (!browser) {
-            await msgReply("TurnerBot hasn't started yet, try again");
-            return;
-          }
-          serverData.cooldowns?.set(dbKey, maintenant);
-          let cIStop = true;
-          if (
-            serverData.mcConfig?.status !== "Online" &&
-            serverData.lastStatusLog + commandDelay * 30 > Date.now()
-          ) {
-            msecondsRes = Date.now() - serverData.lastStatusLog;
-            timeConversor();
-            if (!isNaN(msecondsRes) && timeTextParameter !== undefined) {
-              cIStop = false;
-              await msgReply(
-                `Server status was ${serverData.mcConfig?.status} ${msecondsRes} ${timeTextParameter} ago`,
+      if (canStop) {
+        await serverData.save();
+        if (isQueueProcessing || actionQueue.length > 0) {
+          const queuePosition = actionQueue.length + 1;
+          savedMessage = await replyMessage(
+            `TurnerBot processing queue is full. Position: **#${queuePosition}**.`,
+          );
+        } else {
+          savedMessage = await replyMessage(
+            `**${serverData.mcConfig?.ip}** is turning off...`,
+          );
+        }
+        const wasQueued = isQueueProcessing;
+        actionQueue.push({
+          run: async () => {
+            if (wasQueued) {
+              await savedMessage.edit(
+                `Closing **${serverData.mcConfig?.ip}** server...`,
               );
             }
-          }
+            try {
+              const result = await controlAternosServer(
+                serverData.mcConfig?.id,
+                "stop",
+                serverData,
+              );
+              await serverData.save();
+              if (result === "alreadyOffline") {
+                await savedMessage.edit(
+                  `**${serverData.mcConfig?.ip}** is already offline.`,
+                );
+              } else if (result) {
+                await savedMessage.edit(
+                  `**${serverData.mcConfig?.ip}** has been turned off.`,
+                );
+              } else {
+                await savedMessage.edit(
+                  "An error occurred closing the server. No response from host.",
+                );
+              }
+            } catch (error) {}
+          },
+        });
+        processQueue();
+        return;
+      }
+    }
 
-          if (cIStop) {
-            await serverData.save();
-            if (isProcessing === true || queueAct.length > 0) {
-              const queuePosition = queueAct.length + 1;
-              await msgReply(
-                `TurnerBot is processing another task currently. Your position in the queue is **#${queuePosition}**.`,
-              );
-            } else {
-              await msgReply(
-                `<a:loading:1548513293830848603> **${serverData.mcConfig?.ip}** is turning Off...`,
-              );
-            }
-            const wasQueued = isProcessing;
-            queueAct.push({
-              run: async () => {
-                if (wasQueued) {
-                  await msgReply(
-                    `<a:loading:1548513293830848603> Closing **${serverData.mcConfig?.ip}** server...`,
-                  );
-                }
-                try {
-                  const aternosResult = await ctrlAternos(
-                    serverData.mcConfig?.id,
-                    "stop",
-                    serverData,
-                    maintenant,
-                  );
-                  await serverData.save();
-                  if (aternosResult) {
-                    await msgReply(`**${serverData.mcConfig?.ip}** is Offline`);
-                    return;
-                  } else if (!aternosResult || aternosResult === false) {
-                    await msgReply(
-                      "An error ocurred closing the server, no answer from the host website",
-                    );
-                  }
-                } catch {}
-              },
-            });
-            queueProcessing();
-            return;
-          }
-        } else if (
-          (msg.content.startsWith(`at.stop`) && !serverData.mcConfig?.id) ||
-          (msg.content.startsWith(`at.stop`) && !serverData.mcConfig?.ip)
-        ) {
-          await msgReply(`You didn't provided an ip or id, use at.setup first`);
-        } else if (
-          msg.content.startsWith(`at.stop`) &&
-          maintenant - lastCommandLogTime < commandDelay * 30
-        ) {
-          msecondsRes = commandDelay * 30 - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
+    if (
+      message.content.toLowerCase().startsWith("at.restart") &&
+      (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
+      currentTime - lastCommandTimestamp > commandDelay * 60
+    ) {
+      if (!browserInstance) {
+        await replyMessage("TurnerBot has not started yet, please try again.");
+        return;
+      }
+      serverData.cooldowns?.set(commandKey, currentTime);
+      let canRestart = true;
+      if (
+        serverData.mcConfig?.status !== "Online" &&
+        serverData.lastStatusLog + commandDelay * 60 * 2 > Date.now()
+      ) {
+        timeRemaining = Date.now() - serverData.lastStatusLog;
+        convertTime();
+        if (!isNaN(timeRemaining) && timeTextParameter !== undefined) {
+          canRestart = false;
+          await replyMessage(
+            `Server status was ${serverData.mcConfig?.status} ${timeRemaining}${timeTextParameter} ago.`,
+          );
         }
       }
 
-      {
-        if (
-          msg.content.startsWith(`at.restart`) &&
-          (serverData.mcConfig?.ip || serverData.mcConfig?.id) &&
-          maintenant - lastCommandLogTime > commandDelay * 60
-        ) {
-          if (!browser) {
-            await msgReply("TurnerBot hasn't started yet, try again");
-            return;
-          }
-          serverData.cooldowns?.set(dbKey, maintenant);
-          let cIRestart = true;
-          if (
-            serverData.mcConfig?.status !== "Online" &&
-            serverData.lastStatusLog + commandDelay * 60 * 2 > Date.now()
-          ) {
-            msecondsRes = Date.now() - serverData.lastStatusLog;
-            timeConversor();
-            if (!isNaN(msecondsRes) && timeTextParameter !== undefined) {
-              cIRestart = false;
-              await msgReply(
-                `Server status was ${serverData.mcConfig?.status} ${msecondsRes} ${timeTextParameter} ago`,
-              );
-            }
-          }
-
-          if (cIRestart) {
-            await serverData.save();
-            if (isProcessing === true || queueAct.length > 0) {
-              const queuePosition = queueAct.length + 1;
-              await msgReply(
-                `TurnerBot is processing another task currently. Your position in the queue is **#${queuePosition}**.`,
-              );
-            } else {
-              await msgReply(
-                `<a:loading:1548513293830848603> **${serverData.mcConfig?.ip}** is Restarting...`,
-              );
-            }
-            const wasQueued = isProcessing;
-            queueAct.push({
-              run: async () => {
-                if (wasQueued) {
-                  await msgReply(
-                    `<a:loading:1548513293830848603> Restarting **${serverData.mcConfig?.ip}** server...`,
-                  );
-                }
-                try {
-                  const aternosResult = await ctrlAternos(
-                    serverData.mcConfig?.id,
-                    "restart",
-                    serverData,
-                    maintenant,
-                  );
-                  await serverData.save();
-                  if (aternosResult === "nRestart") {
-                    await msgReply(`**${serverData.mcConfig?.ip}** is Offline`);
-                  } else if (aternosResult) {
-                    await msgReply(`**${serverData.mcConfig?.ip}** Restarted`);
-                    return;
-                  } else if (!aternosResult || aternosResult === false) {
-                    await msgReply(
-                      "An error ocurred restarting the server, no answer from the host website",
-                    );
-                  }
-                } catch {}
-              },
-            });
-            queueProcessing();
-            return;
-          }
-        } else if (
-          (msg.content.startsWith(`at.restart`) && !serverData.mcConfig?.id) ||
-          (msg.content.startsWith(`at.restart`) && !serverData.mcConfig?.ip)
-        ) {
-          await msgReply(`You didn't provided an ip or id, use at.setup first`);
-        } else if (
-          msg.content.startsWith(`at.restart`) &&
-          maintenant - lastCommandLogTime < commandDelay * 60
-        ) {
-          msecondsRes = commandDelay * 60 - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
+      if (canRestart) {
+        await serverData.save();
+        if (isQueueProcessing || actionQueue.length > 0) {
+          const queuePosition = actionQueue.length + 1;
+          await replyMessage(
+            `TurnerBot is busy. Position in queue: **#${queuePosition}**.`,
+          );
+        } else {
+          savedMessage = await replyMessage(
+            `Restarting **${serverData.mcConfig?.ip}** server...`,
+          );
         }
+        const wasQueued = isQueueProcessing;
+        actionQueue.push({
+          run: async () => {
+            try {
+              const result = await controlAternosServer(
+                serverData.mcConfig?.id,
+                "restart",
+                serverData,
+              );
+              await serverData.save();
+              if (result === "offlineRestart") {
+                await savedMessage.edit(
+                  `**${serverData.mcConfig?.ip}** is offline.`,
+                );
+              } else if (result) {
+                await savedMessage.edit(
+                  `**${serverData.mcConfig?.ip}** has been restarted.`,
+                );
+              } else {
+                await savedMessage.edit(
+                  "An error occurred restarting the server.",
+                );
+              }
+            } catch (error) {}
+          },
+        });
+        processQueue();
+        return;
       }
+    }
 
-      {
-        if (
-          msg.content.startsWith(`at.status`) &&
-          serverData.mcConfig?.id &&
-          maintenant - lastCommandLogTime > commandDelay * 5
-        ) {
-          serverData.cooldowns?.set(dbKey, maintenant);
-          await serverData.save();
+    if (
+      message.content.toLowerCase().startsWith("at.status") &&
+      serverData.mcConfig?.id &&
+      currentTime - lastCommandTimestamp > commandDelay * 5
+    ) {
+      serverData.cooldowns?.set(commandKey, currentTime);
+      await serverData.save();
 
-          const statusColor = (statusText) => {
-            if (!statusText) return 0x605f63; // Gris
-            const st = statusText.toLowerCase();
-            if (st.includes("online")) return 0x24d166; // Verde
-            if (st.includes("offline")) return 0xe74c3c; // Rojo
-            return 0xf1c40f; // Amarillo
-          };
+      const getStatusColor = (statusText) => {
+        if (!statusText) return 0x605f63;
+        const st = statusText.toLowerCase();
+        if (st.includes("online")) return 0x24d166;
+        if (st.includes("offline")) return 0xe74c3c;
+        return 0xf1c40f;
+      };
 
-          if (
-            serverData.lastStatusCommand + commandDelay * 60 * 2 <
-            Date.now()
-          ) {
-            if (isProcessing === true || queueAct.length > 0) {
-              const queuePosition = queueAct.length + 1;
-              await msgReply(
-                `TurnerBot is processing another task currently. Your position in the queue is **#${queuePosition}**.`,
+      if (serverData.lastStatusCommand + commandDelay * 60 * 2 < Date.now()) {
+        if (isQueueProcessing || actionQueue.length > 0) {
+          const queuePosition = actionQueue.length + 1;
+          savedMessage = await replyMessage(
+            `TurnerBot is busy. Position in queue: **#${queuePosition}**.`,
+          );
+        } else {
+          savedMessage = await replyMessage(
+            `Checking **${serverData.mcConfig?.ip}** server status...`,
+          );
+        }
+
+        const wasQueued = isQueueProcessing;
+        actionQueue.push({
+          run: async () => {
+            try {
+              const result = await controlAternosServer(
+                serverData.mcConfig?.id,
+                "status",
+                serverData,
               );
-            } else {
-              await msgReply(
-                `<a:loading:1548513293830848603> Searching the status of **${serverData.mcConfig?.ip}**...`,
-              );
-            }
+              await serverData.save();
 
-            const wasQueued = isProcessing;
-            queueAct.push({
-              run: async () => {
-                if (wasQueued) {
-                  await msgReply(
-                    `<a:loading:1548513293830848603> Verifying **${serverData.mcConfig?.ip}** server...`,
-                  );
-                }
-                try {
-                  const aternosResult = await ctrlAternos(
-                    serverData.mcConfig?.id,
-                    "status",
-                    serverData,
-                    maintenant,
-                  );
-                  await serverData.save();
-
-                  if (aternosResult === true) {
-                    if (serverData.mcConfig?.status) {
-                      try {
-                        const statusEmbed = new EmbedBuilder()
-                          .setColor(statusColor(serverData.mcConfig?.status))
-                          .setTitle(`${serverData.mcConfig?.ip}`)
-                          .addFields(
-                            {
-                              name: "Status:",
-                              value: `\`${serverData.mcConfig?.status}\``,
-                              inline: false,
-                            },
-                            {
-                              name: "Players:",
-                              value: `\`${serverData.mcConfig?.players}\``,
-                              inline: true,
-                            },
-                            {
-                              name: "Version:",
-                              value: `\`${serverData.mcConfig?.version}\``,
-                              inline: true,
-                            },
-                            {
-                              name: "Software:",
-                              value: `\`${serverData.mcConfig?.software}\``,
-                              inline: true,
-                            },
-                          )
-                          .setFooter({ text: `${msg.author?.displayName}` })
-                          .setTimestamp();
-
-                        await msgReply({ embeds: [statusEmbed] });
-                      } catch (e) {
-                        console.error(msgERR, e);
-                      }
-                    }
-                  } else if (!aternosResult || aternosResult === false) {
-                    await msgReply(
-                      "An error ocurred searching the server's data, no answer from the host website",
-                    );
-                  }
-                } catch {}
-              },
-            });
-            queueProcessing();
-            return;
-          } else if (
-            serverData.lastStatusCommand + commandDelay * 60 * 2 >
-            Date.now()
-          ) {
-            msecondsRes = Date.now() - serverData.lastStatusCommand;
-            const statusSec = Math.floor(msecondsRes / 1000);
-            if (serverData.mcConfig?.status) {
-              try {
-                const statusOldEmbed = new EmbedBuilder()
-                  .setColor(statusColor(serverData.mcConfig?.status))
-                  .setTitle(`Server: ${serverData.mcConfig?.ip}`)
+              if (result === true && serverData.mcConfig?.status) {
+                const statusEmbed = new EmbedBuilder()
+                  .setColor(getStatusColor(serverData.mcConfig?.status))
+                  .setTitle(`${serverData.mcConfig?.ip}`)
                   .addFields(
                     {
-                      name: "Status:",
+                      name: "Status",
                       value: `\`${serverData.mcConfig?.status}\``,
-                      inline: true,
+                      inline: false,
                     },
                     {
-                      name: "Players:",
+                      name: "Players",
                       value: `\`${serverData.mcConfig?.players}\``,
                       inline: true,
                     },
                     {
-                      name: "Version:",
+                      name: "Version",
                       value: `\`${serverData.mcConfig?.version}\``,
                       inline: true,
                     },
                     {
-                      name: "Software:",
+                      name: "Software",
                       value: `\`${serverData.mcConfig?.software}\``,
                       inline: true,
                     },
-                    {
-                      name: "",
-                      value: `-# Check cooldown: *${statusSec}s/120s*`,
-                    },
                   )
-                  .setFooter({ text: `${msg.author?.displayName}` })
+                  .setFooter({ text: message.author?.displayName })
                   .setTimestamp();
 
-                await msgReply({ embeds: [statusOldEmbed] });
-              } catch (e) {
-                console.error(msgERR, e);
+                savedMessage.edit({ content: null, embeds: [statusEmbed] });
+              } else {
+                savedMessage.edit("An error occurred retrieving server data.");
               }
-            }
-          }
-        } else if (
-          (msg.content.startsWith(`at.status`) && !serverData.mcConfig?.id) ||
-          (msg.content.startsWith(`at.status`) && !serverData.mcConfig?.ip)
-        ) {
-          await msgReply(`You didn't provided an ip or id, use at.setup first`);
-        } else if (
-          msg.content.startsWith(`at.status`) &&
-          maintenant - lastCommandLogTime < commandDelay * 5
-        ) {
-          msecondsRes = commandDelay * 5 - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
+            } catch (error) {}
+          },
+        });
+        processQueue();
+        return;
+      } else {
+        timeRemaining = Date.now() - serverData.lastStatusCommand;
+        const secondsElapsed = Math.floor(timeRemaining / 1000);
+        if (serverData.mcConfig?.status) {
+          const oldStatusEmbed = new EmbedBuilder()
+            .setColor(getStatusColor(serverData.mcConfig?.status))
+            .setTitle(`Server: ${serverData.mcConfig?.ip}`)
+            .addFields(
+              {
+                name: "Status",
+                value: `\`${serverData.mcConfig?.status}\``,
+                inline: true,
+              },
+              {
+                name: "Players",
+                value: `\`${serverData.mcConfig?.players}\``,
+                inline: true,
+              },
+              {
+                name: "Version",
+                value: `\`${serverData.mcConfig?.version}\``,
+                inline: true,
+              },
+              {
+                name: "Software",
+                value: `\`${serverData.mcConfig?.software}\``,
+                inline: true,
+              },
+              { name: "", value: `-# Cooldown: *${secondsElapsed}s/120s*` },
+            )
+            .setFooter({ text: message.author?.displayName })
+            .setTimestamp();
+
+          await replyMessage({ embeds: [oldStatusEmbed] });
         }
       }
-
-      {
-        if (
-          msg.content.startsWith(`at.setup`) &&
-          maintenant - lastCommandLogTime > commandDelay
-        ) {
-          const ip = msgSplited[1]?.trim();
-          const serverId = msgSplited[2]?.trim();
-          const password = msgSplited[3]?.trim();
-
-          if (!ip || !serverId || !password) {
-            await msgReply(
-              `you didn't provided a valid setup. Example: "at.setup <IP> <ServerID> <Password> \n-# *Don't share your password with nobody unless you want them to connect your Minecraft server with their Discord using a Paid Plan*`,
-            );
-            await msg.delete().catch(() => {});
-            return;
-          }
-
-          let existingData = await aternos.findOne({ id: serverId });
-
-          if (existingData) {
-            if (existingData.pswrd !== password) {
-              await msgReply(`You placed your ID or Password wrong`);
-              await msg.delete().catch(() => {});
-              return;
-            }
-
-            const isAlreadyLinked = existingData.linkedGuilds.includes(
-              msg.guildId,
-            );
-            if (!isAlreadyLinked && existingData.linkedGuilds.length >= 1) {
-              await msgReply(
-                `You have a Free plan and this Id is already logged into another Discord server, upgrade your plan to be able to use TurnerBot in more than 1 server at once`,
-              );
-              await msg.delete().catch(() => {});
-              return;
-            }
-          }
-
-          const ownerToSet = existingData
-            ? existingData.ownerId
-            : msg.author?.id;
-          aternosData = await aternos.findOneAndUpdate(
-            { id: serverId },
-            {
-              $set: { pswrd: password, ownerId: ownerToSet },
-              $addToSet: { linkedGuilds: msg.guildId },
-            },
-            { upsert: true, returnDocument: "after" },
-          );
-
-          if (serverData?.mcConfig) {
-            serverData.mcConfig.ip = ip;
-            serverData.mcConfig.id = serverId;
-          }
-          serverData.cooldowns?.set(dbKey, maintenant);
-
-          try {
-            await msgReply(
-              `[IP: **${serverData?.mcConfig?.ip}**], [ID: **${serverData?.mcConfig?.id}**] stablished, you are the only person that can change the password related to your ID, and the preference for any ticket in our server, use "at.delete" to erase your credentials`,
-            );
-          } catch (e) {
-            console.error(msgERR, e);
-          }
-
-          serverData.cooldowns?.set(dbKey, maintenant);
-          await serverData.save();
-          await msg.delete().catch(() => {});
-          return;
-        } else if (
-          msg.content.startsWith(`at.setup`) &&
-          maintenant - lastCommandLogTime < commandDelay
-        ) {
-          msecondsRes = commandDelay - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
-          await msg.delete().catch(() => {});
-        }
-      }
-
-      {
-        if (
-          msg.content.startsWith(`at.delete`) &&
-          maintenant - lastCommandLogTime > commandDelay
-        ) {
-          if (aternosData && msg.author?.id === aternosData?.ownerId) {
-            await aternos.deleteOne({ id: serverData.mcConfig?.id });
-            if (serverData?.mcConfig) {
-              serverData.mcConfig.ip = "Empty";
-              serverData.mcConfig.id = "Empty";
-              serverData.mcConfig.status = "N/A";
-              serverData.mcConfig.version = "Empty";
-              serverData.mcConfig.players = "N/A";
-              serverData.mcConfig.software = "Empty";
-            }
-            await serverData.save();
-            await msgReply(`All your credentials have been deleted`);
-          } else {
-            if (msg.author?.id !== aternosData?.ownerId && aternosData) {
-              await msgReply(
-                `Only the user who registered the credentials can erase them`,
-              );
-            } else if (!aternosData) {
-              await msgReply(`You don't have any credentials to erase`);
-            }
-          }
-        } else if (
-          msg.content.startsWith(`at.delete`) &&
-          maintenant - lastCommandLogTime < commandDelay
-        ) {
-          msecondsRes = commandDelay - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
-        }
-      }
-
-      {
-        if (
-          msg.content.startsWith(`at.changepass`) &&
-          maintenant - lastCommandLogTime > commandDelay
-        ) {
-          if (aternosData?.pswrd) {
-            if (msg.author?.id !== aternosData?.ownerId) {
-              await msgReply(`Only who registered the password can change it`);
-            }
-
-            if (!msgSplited[1] || !msgSplited[2]) {
-              await msgReply(
-                `you didn't provided a valid change. Example: "at.changepass <Old Password> <New Password> \n-# *Don't share your password unless you want them to connect your Minecraft server with their Discord by Paid Plan*`,
-              );
-              await msg.delete();
-              return;
-            }
-            if (msg.author?.id === aternosData?.ownerId) {
-              aternosData.pswrd = msgSplited[2].trim();
-              await aternosData.save();
-              await msgReply(
-                `Password stablished, use "at.delete" to erase your credentials or "at.password" to see your current password`,
-              );
-              msg.delete();
-            }
-          } else if (!aternosData?.pswrd) {
-            await msgReply(`This server doesn't have a password`);
-            return;
-          }
-        } else if (
-          msg.content.startsWith(`at.changepass`) &&
-          maintenant - lastCommandLogTime < commandDelay
-        ) {
-          msecondsRes = commandDelay - (maintenant - lastCommandLogTime);
-          timeConversor();
-          await cooldownEmbed();
-        }
-      }
-
-      {
-        if (
-          msg.content.startsWith(`at.password`) &&
-          maintenant - lastCommandLogTime > commandDelay
-        ) {
-          if (!aternosData?.pswrd) {
-            await msgReply(`This server doesn't have a password`);
-            return;
-          }
-
-          if (msg.content.includes(`here`)) {
-            await msgReply(
-              `Your current password is /spoiler ||${aternosData?.pswrd}|| \n-# *${serverData.mcConfig?.ip}*`,
-            );
-            return;
-          }
-
-          if (msg.author?.id === aternosData?.ownerId) {
-            try {
-              msg.author.send(
-                `Your current password is ||${aternosData?.pswrd}|| \n-# *${serverData.mcConfig?.ip}*`,
-              );
-            } catch {
-              await msgReply(
-                `I couldn't send you the password via DM, use "at.password here" if you want to see it in this channel \n-# *(anyone else will see it)*`,
-              );
-            }
-          } else if (
-            msg.content.startsWith(`at.password`) &&
-            msg.author?.id !== aternosData?.ownerId
-          ) {
-            await msgReply(
-              `Only who registered the password can see it, for now`,
-            );
-          }
-        } else if (
-          msg.content.startsWith(`at.password`) &&
-          maintenant - lastCommandLogTime < commandDelay
-        ) {
-        }
-      }
-
-      // ADMIN COMMANDS BELOW
-
-      {
-        if (config.admin?.includes(msg.author?.id)) {
-          //
-          if (msg.content.includes(`at.newPlan`)) {
-            if (msgSplited[1] && msgSplited[2] && msgSplited[3]) {
-              if (
-                !msgSplited[1].includes(`OWN`) &&
-                !msgSplited[1].includes(`SRV`)
-              ) {
-                await msgReply(
-                  `you didn't provided a valid plan. Example: "at.newPlan <OWN>/<SRV> <dsID> <Plan> \n-# *Don't share your password with nobody unless you want them to connect your Minecraft server with their Discord using a Paid Plan*`,
-                );
-                await msg.delete();
-                return;
-              }
-              let planWho = msgSplited[1]?.toUpperCase();
-              let userId = msgSplited[2];
-              let planType = msgSplited[3];
-
-              if (
-                ![
-                  "11",
-                  "12",
-                  "13",
-                  "14",
-                  "15",
-                  "21",
-                  "22",
-                  "23",
-                  "24",
-                  "25",
-                  "31",
-                  "32",
-                  "33",
-                  "34",
-                  "35",
-                  "41",
-                  "42",
-                  "43",
-                  "44",
-                  "45",
-                  "51",
-                  "52",
-                  "53",
-                  "54",
-                  "55",
-                ].includes(planType) ||
-                !userId
-              ) {
-                await msgReply(
-                  `Unvalid plan type, example: <23>, where the first number is the amount of Discord Servers that can have the same minecraft ID, and where the second number means the users that can use the Token \n \n -# *Only accepts 1 to 5 in both digits`,
-                );
-                return;
-              }
-
-              const updateField =
-                planWho === "OWN" ? { ownIndex: 1 } : { srvIndex: 1 };
-              const counterDoc = await token.findOneAndUpdate(
-                {}, // Filtro vacío para usar el documento único de contadores
-                { $inc: updateField },
-                { upsert: true, returnDocument: "after" },
-              );
-
-              const currentIndex =
-                planWho === "OWN" ? counterDoc.ownIndex : counterDoc.srvIndex;
-              const generatedToken = tokenUtils.generateToken(
-                planWho,
-                currentIndex,
-                userId,
-                planType,
-              );
-
-              await msgReply(
-                `**New plan**\n` +
-                  `• **Type:** \`${planWho}\`\n` +
-                  `• **Index:** \`#${currentIndex}\`\n` +
-                  `• **User:** <@${userId}>\n` +
-                  `• **Token:** \`${generatedToken}\``,
-              );
-            } else if (!msgSplited[1] || !msgSplited[2] || !msgSplited[3]) {
-              await msgReply(
-                `you didn't provided a valid plan. Example: "at.newPlan <OWN>/<SRV> <dsID> <Plan> \n-# *Don't share your password with nobody unless you want them to connect your Minecraft server with their Discord using a Paid Plan*`,
-              );
-              await msg.delete();
-              return;
-            }
-          }
-        }
-      }
-
-      //                /\
-      // Text Receiving ||
     }
-  } else if (
-    msg.author?.bot === false &&
-    mongoose.connection.readyState === 0
-  ) {
-    console.log(`ERR: mongoose isn't ready`);
+
+    if (
+      message.content.toLowerCase().startsWith("at.setup") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      const ip = commandArgs[1]?.trim();
+      const serverId = commandArgs[2]?.trim();
+      const password = commandArgs[3]?.trim();
+
+      if (!ip || !serverId || !password) {
+        await replyMessage(
+          "Invalid setup format. Example: `at.setup <IP> <ServerID> <Password>`",
+        );
+        await message.delete().catch(() => {});
+        return;
+      }
+
+      let existingData = await AternosModel.findOne({ id: serverId });
+      if (existingData) {
+        if (existingData.pswrd !== password) {
+          await replyMessage("Incorrect ID or password provided.");
+          await message.delete().catch(() => {});
+          return;
+        }
+
+        const isLinked = existingData.linkedGuilds.includes(message.guildId);
+        if (!isLinked && existingData.linkedGuilds.length >= 1) {
+          await replyMessage(
+            "Server limit reached. This ID is already linked to another Discord server.",
+          );
+          await message.delete().catch(() => {});
+          return;
+        }
+      }
+
+      const ownerToSet = existingData
+        ? existingData.ownerId
+        : message.author?.id;
+      aternosData = await AternosModel.findOneAndUpdate(
+        { id: serverId },
+        {
+          $set: { pswrd: password, ownerId: ownerToSet },
+          $addToSet: { linkedGuilds: message.guildId },
+        },
+        { upsert: true, returnDocument: "after" },
+      );
+
+      serverData.mcConfig.ip = ip;
+      serverData.mcConfig.id = serverId;
+      serverData.cooldowns?.set(commandKey, currentTime);
+      await serverData.save();
+
+      await replyMessage(
+        `Successfully linked IP **${ip}** and ID **${serverId}**.`,
+      );
+      await message.delete().catch(() => {});
+      return;
+    }
+
+    if (
+      message.content.toLowerCase().startsWith("at.delete") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      if (aternosData && message.author?.id === aternosData?.ownerId) {
+        await AternosModel.deleteOne({ id: serverData.mcConfig?.id });
+        serverData.mcConfig = {
+          ip: "Empty",
+          id: "Empty",
+          status: "N/A",
+          version: "Empty",
+          players: "N/A",
+          software: "Empty",
+        };
+        await serverData.save();
+        await replyMessage("All your credentials have been deleted.");
+      } else {
+        await replyMessage(
+          "You do not have permission or credentials to delete.",
+        );
+      }
+    }
+
+    if (
+      message.content.toLowerCase().startsWith("at.changepass") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      if (aternosData?.pswrd) {
+        if (message.author?.id !== aternosData?.ownerId) {
+          await replyMessage("Only the owner can change the password.");
+          return;
+        }
+        if (!commandArgs[1] || !commandArgs[2]) {
+          await replyMessage(
+            "Invalid format. Example: `at.changepass <OldPassword> <NewPassword>`",
+          );
+          await message.delete().catch(() => {});
+          return;
+        }
+        aternosData.pswrd = commandArgs[2].trim();
+        await aternosData.save();
+        await replyMessage("Password updated successfully.");
+        message.delete().catch(() => {});
+      } else {
+        await replyMessage("This server has no password registered.");
+      }
+    }
+
+    if (
+      message.content.toLowerCase().startsWith("at.password") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      if (!aternosData?.pswrd) {
+        await replyMessage("This server has no password registered.");
+        return;
+      }
+      if (message.content.includes("here")) {
+        await replyMessage(`Current password: ||${aternosData?.pswrd}||`);
+        return;
+      }
+      if (message.author?.id === aternosData?.ownerId) {
+        try {
+          await message.author.send(
+            `Current password for ${serverData.mcConfig?.ip}: ||${aternosData?.pswrd}||`,
+          );
+          await replyMessage("Password sent via Direct Message.");
+        } catch {
+          await replyMessage(
+            "Could not send DM. Use `at.password here` to view it in chat.",
+          );
+        }
+      } else {
+        await replyMessage("Only the owner can view the password.");
+      }
+    }
+
+    if (
+      message.content.toLowerCase().startsWith("tb.help") &&
+      currentTime - lastCommandTimestamp > commandDelay
+    ) {
+      if (message.content.toLowerCase().includes("author")) {
+        try {
+          const authorEmbed = new EmbedBuilder()
+            .setColor(0x00dece)
+            .setTitle("Author & Support Panel")
+            .addFields(
+              {
+                name: "Creator",
+                value: "Developed by Vidahlm.",
+                inline: false,
+              },
+              {
+                name: "Wallet of Satoshi",
+                value: "`anxioustrack35@walletofsatoshi.com`",
+                inline: false,
+              },
+              {
+                name: "Crypto Support",
+                value:
+                  "EVM: `0x253d1E8c059806A7Fc6E50C68490C6C0C94fa9AB`\nSolana: `G6CXowi6T2RWUpNa2oLDvQg5FVLDHGL6DvpXwAGuynKv`\nBitcoin: `bc1qqv2ty2uva0eh0xcweuln42u56k5l8tccljtnwr`",
+                inline: false,
+              },
+            )
+            .setFooter({ text: "Made by Vidahlm" });
+
+          await replyMessage({ embeds: [authorEmbed] });
+          return;
+        } catch (error) {}
+      }
+
+      const fieldsTb = [
+        {
+          name: "Commands",
+          value: "`tb.help author` to check developer and support information",
+        },
+      ];
+      if (isAdmin) {
+        fieldsTb.push({
+          name: "Admin Commands",
+          value: "`tb.fulminate` trigger a quick process restart",
+        });
+      }
+
+      if (message.content.toLowerCase().includes("turnerbot")) {
+        const helpEmbedTb = new EmbedBuilder()
+          .setColor(helpColor)
+          .setTitle("TurnerBot Commands")
+          .addFields(fieldsTb);
+        await replyMessage({ embeds: [helpEmbedTb] });
+        return;
+      } else if (message.content.toLowerCase().includes("aternos")) {
+        const helpEmbedAt = new EmbedBuilder()
+          .setColor(helpColor)
+          .setTitle("Aternos Commands")
+          .addFields({
+            name: "Commands",
+            value:
+              "`at.guide` setup guide\n`at.setup` link server\n`at.status` check status\n`at.start` turn on\n`at.restart` reboot\n`at.stop` turn off",
+          });
+        await replyMessage({ embeds: [helpEmbedAt] });
+        return;
+      }
+
+      const helpEmbed = new EmbedBuilder()
+        .setColor(helpColor)
+        .setTitle("Help")
+        .addFields(
+          {
+            name: "Info",
+            value: "Minecraft server management bot for Aternos.",
+          },
+          {
+            name: "Categories",
+            value: "`tb.help turnerbot`\n`tb.help aternos`\n`tb.help author`",
+          },
+        )
+        .setFooter({ text: "Made by Vidahlm" });
+
+      await replyMessage({ embeds: [helpEmbed] });
+    }
+
+    if (isAdmin) {
+      if (message.content.toLowerCase().startsWith("tb.fulminate")) {
+        console.log("Crashing out process...");
+        await replyMessage("Fulminating myself...");
+        setTimeout(() => {
+          process.exit(1);
+        }, 1000);
+      }
+    }
   }
 });
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-//                  /\
-// Shut down system ||
+process.on("SIGINT", shutdownBot);
+process.on("SIGTERM", shutdownBot);
