@@ -37,3 +37,18 @@ ATERNOS_PASSWORD=
 
 # Optional custom browser path (Puppeteer defaults to Chromium if left empty)
 PUPPETEER_THORIUM=
+```
+
+## Donations
+
+Wallet of Satoshi: anxioustrack35@walletofsatoshi.com
+
+EVM (ETH, BNB, POL...): 0x253d1E8c059806A7Fc6E50C68490C6C0C94fa9AB
+
+Bitcoin: bc1qqv2ty2uva0eh0xcweuln42u56k5l8tccljtnwr
+
+Solana: G6CXowi6T2RWUpNa2oLDvQg5FVLDHGL6DvpXwAGuynKv
+
+Tron: TX3EDzDFH6VX96TLHM6wA5y5D8zqxcodmQ
+
+Stellar: GBOL6MZM7E6FXJOES7G6OUZS3K2P6Z7I3JXMCWXP4FAMYLFSW7EX77JR
