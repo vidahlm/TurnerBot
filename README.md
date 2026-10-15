@@ -76,6 +76,7 @@ PUPPETEER_THORIUM=
 **tb.fulminate:** Quick process restart (restricted to administrators).
 
 ## Donations
+If you want to support this proyect to keep alive and get updates!
 
 **Wallet of Satoshi:** anxioustrack35@walletofsatoshi.com
 
