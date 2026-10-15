@@ -78,6 +78,7 @@ PUPPETEER_THORIUM=
 ## Donations
 If you want to support this proyect to keep alive and get updates!
 
+
 **Wallet of Satoshi:** anxioustrack35@walletofsatoshi.com
 
 **EVM (ETH, BNB, POL...):** 0x253d1E8c059806A7Fc6E50C68490C6C0C94fa9AB
