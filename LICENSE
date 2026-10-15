@@ -1,0 +1,21 @@
+Copyright (c) 2026 Vidahlm. All rights reserved.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+ADDITIONAL TERMS AND CONDITIONS:
+
+1. ATTRIBUTION AND IDENTITY:
+   Any modification, adaptation, or derivative work of this software must respect the following:
+   a) The software must not be used for unlawful, defamatory, or immoral purposes.
+   b) All original author attribution, credits to Vidahlm, cryptocurrency wallet addresses, and support panel links must remain completely intact in both the source code and all user-facing command responses.
+   c) The original project name "TurnerBot" must be respected and referenced; rebranding the core identity without explicit reference to the original author is prohibited.
+
+2. USAGE, HOSTING, AND PERMITTED DISTRIBUTION:
+   a) Community and Server Hosting: Game servers, communities, or server hosts are explicitly permitted to deploy and run this bot for their players/members free of charge, even if the hosting server or network generates independent revenue through donations, cosmetics, or ranks, provided that access to the bot itself remains entirely free.
+   b) Prohibited Commercialization: Direct resale of the software, charging fees for access to the bot, offering paid bot-hosting services (monetizing the bot as a standalone product), or sub-licensing for profit is strictly prohibited.
+   c) Code Isolation: Extracting and utilizing the proprietary logic, unique routines, or core implementation details of TurnerBot for use in entirely separate or unrelated software projects is strictly prohibited.
+
+3. NO WARRANTY:
+   THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
