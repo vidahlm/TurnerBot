@@ -1,0 +1,5 @@
+node_modules/
+.env
+browser_profile/
+aternos session/
+.DS_Store
