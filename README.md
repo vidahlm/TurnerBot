@@ -59,7 +59,8 @@ PUPPETEER_THORIUM=
 
 **tb.help author:** Developer information and support channels.
 
-**tb.fulminate:** Quick process restart (restricted to administrators in config.json).
+**tb.fulminate:** Emergency process shutdown (restricted to administrators in config.json).  
+  <sub>If managed by an automated supervision script, this shutdown will trigger an automatic restart.</sub>
 
 ## Donations
 
