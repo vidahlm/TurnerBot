@@ -47,6 +47,21 @@ ATERNOS_PASSWORD=
 PUPPETEER_THORIUM=
 ```
 
+## Usage & Deployment
+
+Navigate to the project root directory containing **index.js** in your terminal and choose either the PM2 or Docker deployment method.
+
+### PM2:
+```bash
+pm2 start index.js --name "turnerbot" --restart-delay 3000
+```
+
+### Docker:
+```bash
+docker build -t turnerbot .
+docker run -d --name turnerbot --env-file .env turnerbot
+```
+
 ## Commands Reference
 
 ### General & Administration
@@ -59,22 +74,22 @@ PUPPETEER_THORIUM=
 
 **tb.help author:** Developer information and support channels.
 
-**tb.fulminate:** Emergency process shutdown (restricted to administrators in config.json).  
+**tb.fulminate:** Forced script termination (restricted to administrators in config.json).  
   <sub>If managed by an automated supervision script, this shutdown will trigger an automatic restart.</sub>
 
 ## Donations
 
-**Wallet of Satoshi:** anxioustrack35@walletofsatoshi.com
+**Wallet of Satoshi:** `anxioustrack35@walletofsatoshi.com`
 
-**EVM (ETH, BNB, POL...):** 0x253d1E8c059806A7Fc6E50C68490C6C0C94fa9AB
+**EVM (ETH, BNB, POL...):** `0x253d1E8c059806A7Fc6E50C68490C6C0C94fa9AB`
 
-**Bitcoin:** bc1qqv2ty2uva0eh0xcweuln42u56k5l8tccljtnwr
+**Bitcoin:** `bc1qqv2ty2uva0eh0xcweuln42u56k5l8tccljtnwr`
 
-**Solana:** G6CXowi6T2RWUpNa2oLDvQg5FVLDHGL6DvpXwAGuynKv
+**Solana:** `G6CXowi6T2RWUpNa2oLDvQg5FVLDHGL6DvpXwAGuynKv`
 
-**Tron:** TX3EDzDFH6VX96TLHM6wA5y5D8zqxcodmQ
+**Tron:** `TX3EDzDFH6VX96TLHM6wA5y5D8zqxcodmQ`
 
-**Stellar:** GBOL6MZM7E6FXJOES7G6OUZS3K2P6Z7I3JXMCWXP4FAMYLFSW7EX77JR
+**Stellar:** `GBOL6MZM7E6FXJOES7G6OUZS3K2P6Z7I3JXMCWXP4FAMYLFSW7EX77JR`
 
 ## License
 
