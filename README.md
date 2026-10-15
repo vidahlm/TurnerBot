@@ -49,20 +49,6 @@ PUPPETEER_THORIUM=
 
 ## Commands Reference
 
-### Aternos Management
-
-**at.guide:** Setup and connection instructions.
-
-**at.setup <IP> <ServerID> <Password>:** Link an Aternos server to the Discord channel.
-
-**at.status:** Check live server status, active players, version, and software.
-
-**at.start:** Turn on the server.
-
-**at.restart:** Reboot the server.
-
-**at.stop:** Turn off the server.
-
 ### General & Administration
 
 **tb.help:** Main help panel.
@@ -73,11 +59,9 @@ PUPPETEER_THORIUM=
 
 **tb.help author:** Developer information and support channels.
 
-**tb.fulminate:** Quick process restart (restricted to administrators).
+**tb.fulminate:** Quick process restart (restricted to administrators in config.json).
 
 ## Donations
-If you want to support this proyect to keep alive and get updates!
-
 
 **Wallet of Satoshi:** anxioustrack35@walletofsatoshi.com
 
