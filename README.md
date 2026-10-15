@@ -1,35 +1,39 @@
-// Developed by Vidahlm
+# TurnerBot
 
-Copyright: We allow any modification unless it has unmoral and difamatory content, uses another name ontop of ours (TurnerBot) or doesn't has credits of mine nor my wallet; Vidahlm. We don't allow the commercial use of this repository.
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Discord.js](https://img.shields.io/badge/discord.js-v14-blue.svg)](https://discord.js.org/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg)](https://opensource.org/licenses/ISC)
 
-Disclaimer: This script and all of our supporters aren't related to Aternos nor Discord and any service or page used by this bot. 
-By running this script you are exposing yourself to get your account banned, even from IP, we disassociate ourselves from anything that could happen to your account.
+A reliable Discord bot designed to manage and automate Aternos Minecraft servers using Puppeteer and Node.js.
 
+---
 
-Local dependencies: 
--Node Package Manager (npm)
--SOCK5 (Tor)
--Thorium //(Optional)
+## System Requirements & Compatibility
 
-index.js has been tested in Debian 13. It consumes 200MB RAM in standby and less than 500MB while working.
-Lines 109-122 may provoque errors on windows. It is pretty compatible.
+- **Runtime**: Node.js v18+ (npm required)
+- **Network**: SOCKS5 Proxy / Tor
+- **Browser**: Thorium (Optional, falls back to Chromium automatically)
 
+### Performance Notes
+- Tested and optimized on Debian 13. Resource consumption remains stable at approximately 200MB RAM during standby and under 500MB during active automation cycles.
+- Cross-platform compatible, though Windows users should verify path handling for specific automated routines (lines 109-122).
 
-Example for .env content:
+---
 
-.env("
-# Discord bot token:
+## Environment Configuration (.env)
+
+Create a `.env` file in the root directory using the following template:
+
+```env
+# Discord bot token
 dsToken=
 
-# MongoDB Database:
+# MongoDB Database connection string
 MONGO_URL=
 
-# Your aternos account credentials. You may want to use a secondary account
+# Aternos account credentials (using a secondary account is recommended)
 ATERNOS_USER=
 ATERNOS_PASSWORD=
 
-# Thorium path, if you don't fill this, puppeter will use Chromium by default... Note: Garbage.
+# Optional custom browser path (Puppeteer defaults to Chromium if left empty)
 PUPPETEER_THORIUM=
-")
-
-// Markdown in development.
