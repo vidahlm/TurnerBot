@@ -94,3 +94,6 @@ docker run -d --name turnerbot --env-file .env turnerbot
 ## License
 
 This project is licensed under custom non-commercial terms. Please refer to the LICENSE file for complete terms of use and copyright information.
+
+<div></div>
+<sub>... README and INDEX.JS was reformulated by AI for its comprehension but human-made.</sub>
